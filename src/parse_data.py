@@ -7,7 +7,7 @@ DATASET_BASE_PATH = os.getenv('DATASET_BASE_PATH')
 DATASET_CACHE_PATH = os.getenv('DATASET_CACHE_PATH')
 TMP_PATH = os.getenv('TMP_DIR')
 
-os.environ["TMPDIR"] = "/data/jmacambi/tmp"
+os.environ["TMPDIR"] = TMP_PATH
 os.environ["HF_HOME"] = DATASET_CACHE_PATH
 os.environ["HF_DATASETS_CACHE"] = DATASET_CACHE_PATH
 
@@ -66,6 +66,7 @@ def get_classifying_data():
     # print(data)
 
     return data
+
 
 if __name__ == '__main__':
     ds = Dataset.from_parquet(get_file('spectrogram.parquet'))

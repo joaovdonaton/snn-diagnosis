@@ -6,8 +6,9 @@ load_dotenv()
 DATASET_BASE_PATH = os.getenv('DATASET_BASE_PATH')
 DATASET_CACHE_PATH = os.getenv('DATASET_CACHE_PATH')
 TMP_PATH = os.getenv('TMP_DIR')
+DEFAULT_DATA_PATH = os.getenv('DEFAULT_DATA_PATH')
 
-os.environ["TMPDIR"] = "/data/jmacambi/tmp"
+os.environ["TMPDIR"] = TMP_PATH
 os.environ["HF_HOME"] = DATASET_CACHE_PATH
 os.environ["HF_DATASETS_CACHE"] = DATASET_CACHE_PATH
 
@@ -38,8 +39,8 @@ def make_labels_and_origin(dataset_rows, phenotype_data):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('-o', '--output', default='./', required=True)
-    parser.add_argument('-s', '--size', help='size out of total samples in dataset, will be split 80/10/10 for train/val/test')
+    parser.add_argument('-o', '--output', default=f'{DEFAULT_DATA_PATH}/dataset.npz', required=True)
+    parser.add_argument('-s', '--size', help='size out of total samples in dataset, will be split 80/10/10 for train/val/test', required=True)
     parser.add_argument('-t', '--type', choices=['spectrogram', 'mfcc'], required=True,)
 
     args = parser.parse_args()
@@ -62,13 +63,32 @@ if __name__ == '__main__':
     ds[DATASET_TYPE] = pd.Series(new_data_col)
 
     # build train/test/val split
+    print('Creating split...')
     train_size = int(MAX_SAMPLES*0.8)
     val_size = int(MAX_SAMPLES*0.1) # same for test size
 
     train_rows = ds.iloc[:train_size]
     train_set = train_rows[DATASET_TYPE].to_numpy()
-
     train_labels, train_origins = make_labels_and_origin(train_rows, phenotype_data)
-
-    print(train_labels)
-    print(train_origins)
+    
+    validation_rows = ds.iloc[train_size:train_size+val_size]
+    validation_set = validation_rows[DATASET_TYPE].to_numpy()
+    validation_labels, validation_origins = make_labels_and_origin(validation_rows, phenotype_data)
+    
+    test_rows = ds.iloc[train_size+val_size:]
+    test_set = test_rows[DATASET_TYPE].to_numpy()
+    test_labels, test_origins = make_labels_and_origin(test_rows, phenotype_data)
+    
+    print(f'Writing npz to "{args.output}"...')
+    np.savez(args.output,
+        metadata=[f'Total size: {MAX_SAMPLES}', f'Type: {DATASET_TYPE}'],
+        train_set=train_set,
+        train_labels=train_labels,
+        train_origins=train_origins,
+        validation_set=validation_set,
+        validation_labels=validation_labels,
+        validation_origins=validation_origins,
+        test_set=test_set,
+        test_labels=test_labels,
+        test_origins=test_origins,
+    )

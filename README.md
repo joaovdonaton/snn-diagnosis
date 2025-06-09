@@ -12,4 +12,5 @@
 DATASET_BASE_PATH=PATH_HERE # path to dataset source files
 DATASET_CACHE_PATH=PATH_HERE # path to cache for huggingface loader
 TMP_DIR=PATH_HERE # tmp file path
+DEFAULT_DATA_PATH=PATH_HERE # default path to write datasets and other files
 ```

@@ -2,3 +2,5 @@ src/visualizations.ipynb
 src/.ipynb_checkpoints
 .env
 src/debug.txt
+src/__pycache__
+data/
