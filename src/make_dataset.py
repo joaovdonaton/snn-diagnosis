@@ -17,7 +17,9 @@ import numpy as np
 from datasets import Dataset
 import pandas as pd
 import argparse
-
+import torch.utils.data as torchdata
+ 
+# TODO: I think we might be able to remove the is_control_group label from our multi-label labels for each sample
 
 def make_labels_and_origin(dataset_rows, phenotype_data):
     """
@@ -35,6 +37,28 @@ def make_labels_and_origin(dataset_rows, phenotype_data):
     origins = np.stack(origins).squeeze()
 
     return (labels, origins)
+
+
+def load_dataset(path):
+    d = np.load(path, allow_pickle=True) # need to allow deserializing because of how we stored some of the data
+    
+    return (d['metadata'], d['train_set'], d['train_labels'], d['train_origins'], d['validation_set'], d['validation_labels'], d['validation_origins'],
+        d['test_set'], d['test_labels'], d['test_origins'])
+
+
+class MatrixDataset(torchdata.Dataset):
+    """
+    Class for storing and retrieving 2d spectrogram-like data
+    """
+    def __init__(self, data, labels):
+        self.data = data
+        self.labels = labels
+
+    def __len__(self):
+        return len(self.data)
+    
+    def __getitem__(self, i):
+        return self.data[i], self.labels[i]
 
 
 if __name__ == '__main__':
