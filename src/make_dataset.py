@@ -18,6 +18,7 @@ from datasets import Dataset
 import pandas as pd
 import argparse
 import torch.utils.data as torchdata
+from tqdm import tqdm
  
 # TODO: I think we might be able to remove the is_control_group label from our multi-label labels for each sample
 
@@ -66,6 +67,8 @@ if __name__ == '__main__':
     parser.add_argument('-o', '--output', default=f'{DEFAULT_DATA_PATH}/dataset.npz', required=True)
     parser.add_argument('-s', '--size', help='size out of total samples in dataset, will be split 80/10/10 for train/val/test', required=True)
     parser.add_argument('-t', '--type', choices=['spectrogram', 'mfcc'], required=True,)
+    parser.add_argument('-w', '--window_size', default=512, help='Size of windows for chunking individual samples, if T < window_size, then zero pad')
+    parser.add_argument('-l', '--hop_length', default=256, help='Size of hop of windows for chunking')
 
     args = parser.parse_args()
     DATASET_TYPE = args.type
@@ -75,16 +78,36 @@ if __name__ == '__main__':
     phenotype_data = parse_data.get_classifying_data()
 
     MAX_SAMPLES = len(ds) if args.size is None else int(args.size) 
+    WINDOW_SIZE = args.window_size
+    HOP_LENGTH = args.hop_length
 
     ds = ds.to_pandas()
     ds = ds.sample(frac=1).reset_index(drop=True) # shuffle rows
     ds = ds.iloc[:MAX_SAMPLES]
 
-    # make each spectrogram matrix a proper ndarray
-    new_data_col = []
-    for entry in ds[DATASET_TYPE]:
-        new_data_col.append(np.stack(entry))
-    ds[DATASET_TYPE] = pd.Series(new_data_col)
+    # matrix data preprocessing, windowing + padding
+    # turns ds into a new dataframe, where the spectrogram column is now a window, and each row's data is repeated for windows of same source sample audio
+    new_ds = pd.DataFrame(columns=ds.columns)
+
+    print('Windowing...')
+    for i in tqdm(range(len(ds)), ncols=120):
+        raw_matrix = np.stack(ds.iloc[i][DATASET_TYPE]) # convert data into proper 2d array
+        timesteps = raw_matrix.shape[1]
+
+        # edge case timesteps == WINDOW_SIZE????
+        for j in range(timesteps//HOP_LENGTH + 1):
+            w = raw_matrix[:, j*HOP_LENGTH:j*HOP_LENGTH+WINDOW_SIZE]
+
+            if w.shape[1] < 512: # padding 
+                w = np.concatenate((w, np.zeros((w.shape[0], WINDOW_SIZE-w.shape[1]))), axis=1)
+
+            if not np.all(w == 0): # case where we jump passed end
+                old_row = ds.iloc[i].copy()
+                old_row[DATASET_TYPE] = w
+                new_ds.loc[len(new_ds)] = old_row
+
+
+    ds = new_ds
 
     # build train/test/val split
     print('Creating split...')
@@ -105,7 +128,7 @@ if __name__ == '__main__':
     
     print(f'Writing npz to "{args.output}"...')
     np.savez(args.output,
-        metadata=[f'Total size: {MAX_SAMPLES}', f'Type: {DATASET_TYPE}'],
+        metadata=[f'total_size: {MAX_SAMPLES}', f'type: {DATASET_TYPE}', f'window_size:{WINDOW_SIZE}', f'hop_length:{HOP_LENGTH}'],
         train_set=train_set,
         train_labels=train_labels,
         train_origins=train_origins,
