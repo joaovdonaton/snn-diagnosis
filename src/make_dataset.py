@@ -95,17 +95,20 @@ if __name__ == '__main__':
         timesteps = raw_matrix.shape[1]
 
         # edge case timesteps == WINDOW_SIZE????
-        for j in range(timesteps//HOP_LENGTH + 1):
-            w = raw_matrix[:, j*HOP_LENGTH:j*HOP_LENGTH+WINDOW_SIZE]
+        end = False # flag for when we reach end to avoid creating additional window
+        for j in range(0, timesteps, HOP_LENGTH):
+            w = raw_matrix[:, j:j+WINDOW_SIZE]
 
-            if w.shape[1] < 512: # padding 
+            if w.shape[1] < WINDOW_SIZE: # padding 
                 w = np.concatenate((w, np.zeros((w.shape[0], WINDOW_SIZE-w.shape[1]))), axis=1)
+                end = True
 
             if not np.all(w == 0): # case where we jump passed end
                 old_row = ds.iloc[i].copy()
                 old_row[DATASET_TYPE] = w
                 new_ds.loc[len(new_ds)] = old_row
-
+            
+            if end: break
 
     ds = new_ds
 
