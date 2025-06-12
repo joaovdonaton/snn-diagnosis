@@ -75,11 +75,3 @@ if __name__ == '__main__':
     print(n.shape)
     print(n.min())
     print(n.max())
-
-    #print(ds[0]['session_id'])
-
-
-    #print(get_session_features('07031CC3', 'Animal-fluency'))
-
-    d = get_classifying_data()
-    print(d)

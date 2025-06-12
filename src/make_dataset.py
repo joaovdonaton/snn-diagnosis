@@ -19,6 +19,7 @@ import pandas as pd
 import argparse
 import torch.utils.data as torchdata
 from tqdm import tqdm
+import torch
  
 # TODO: I think we might be able to remove the is_control_group label from our multi-label labels for each sample
 
@@ -52,14 +53,20 @@ class MatrixDataset(torchdata.Dataset):
     Class for storing and retrieving 2d spectrogram-like data
     """
     def __init__(self, data, labels):
-        self.data = data
-        self.labels = labels
+        """
+        Args:
+        - data: tensor of shape (index, f, t) for our matrices
+        - labels: tensor
+        """
+        self.data = data.unsqueeze(1).to(dtype=torch.float32) # channel dim for resnet
+        self.labels = labels.to(dtype=torch.long)
 
     def __len__(self):
         return len(self.data)
     
     def __getitem__(self, i):
-        return self.data[i], self.labels[i]
+        # NOTE: for now, labels only returns is_control column
+        return self.data[i, :, :], self.labels[i, 0]
 
 
 if __name__ == '__main__':
@@ -128,15 +135,15 @@ if __name__ == '__main__':
     val_size = int(MAX_SAMPLES*0.1) # same for test size
 
     train_rows = ds.iloc[:train_size]
-    train_set = train_rows[DATASET_TYPE].to_numpy()
+    train_set = np.stack(train_rows[DATASET_TYPE].to_numpy())
     train_labels, train_origins = make_labels_and_origin(train_rows, phenotype_data)
     
     validation_rows = ds.iloc[train_size:train_size+val_size]
-    validation_set = validation_rows[DATASET_TYPE].to_numpy()
+    validation_set = np.stack(validation_rows[DATASET_TYPE].to_numpy())
     validation_labels, validation_origins = make_labels_and_origin(validation_rows, phenotype_data)
     
     test_rows = ds.iloc[train_size+val_size:]
-    test_set = test_rows[DATASET_TYPE].to_numpy()
+    test_set = np.stack(test_rows[DATASET_TYPE].to_numpy())
     test_labels, test_origins = make_labels_and_origin(test_rows, phenotype_data)
     
     print(f'Writing npz to "{args.output}"...')
