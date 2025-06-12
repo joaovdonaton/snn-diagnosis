@@ -65,7 +65,7 @@ class MatrixDataset(torchdata.Dataset):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-o', '--output', default=f'{DEFAULT_DATA_PATH}/dataset.npz', required=True)
-    parser.add_argument('-s', '--size', help='size out of total samples in dataset, will be split 80/10/10 for train/val/test', required=True)
+    parser.add_argument('-s', '--size', help='size out of total samples in dataset, will be split 80/10/10 for train/val/test. Defaults to full dataset', required=False)
     parser.add_argument('-t', '--type', choices=['spectrogram', 'mfcc'], required=True,)
     parser.add_argument('-w', '--window_size', default=512, help='Size of windows for chunking individual samples, if T < window_size, then zero pad')
     parser.add_argument('-l', '--hop_length', default=256, help='Size of hop of windows for chunking')
@@ -93,6 +93,16 @@ if __name__ == '__main__':
     for i in tqdm(range(len(ds)), ncols=120):
         raw_matrix = np.stack(ds.iloc[i][DATASET_TYPE]) # convert data into proper 2d array
         timesteps = raw_matrix.shape[1]
+
+        # per sample normalize
+        if DATASET_TYPE == 'spectrogram':
+            mean, std = raw_matrix.mean(), raw_matrix.std()
+            raw_matrix = (raw_matrix - mean) / std
+        
+        # will be used to add CMNV or channel wise later
+        elif DATASET_TYPE == 'mfcc':
+            mean, std = raw_matrix.mean(), raw_matrix.std()
+            raw_matrix = (raw_matrix - mean) / std
 
         # edge case timesteps == WINDOW_SIZE????
         end = False # flag for when we reach end to avoid creating additional window
